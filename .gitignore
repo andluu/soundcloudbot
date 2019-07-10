@@ -1,0 +1,6 @@
+.idea/
+*.json
+*.log
+soundcloudbot.iml
+*.mp3
+target/
