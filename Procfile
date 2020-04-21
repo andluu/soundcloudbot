@@ -1,1 +1,1 @@
-web: java -jar target/soundcloudbot.jar
+web: java $JAVA_OPTS -jar target/soundcloudbot.jar
