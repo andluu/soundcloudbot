@@ -14,6 +14,7 @@ import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.PartialBotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
+import org.telegram.telegrambots.meta.api.methods.send.SendChatAction;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -109,7 +110,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
                 helpCommand(chatId);
             }
         } else if (containsLink(text)) {
-            downloadLink(parseLink(text), chatId);
+            downloadTrackByLink(parseLink(text), chatId);
         } else {
             findQuery(text, chatId);
         }
@@ -131,24 +132,19 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
         }
 
         String trackUrl = trackMenuOptional.get().getFoundTracks().get(trackIdx).getUrl();
-        Track downloadedTrack = null;
-        try {
-            downloadedTrack = trackLoader.download(trackUrl);
-            sendTrackToChat(chatId, downloadedTrack);
-        } catch (IOException e) {
-            LOG.error("Failed to download from link={}", trackUrl, e);
-            sendToChat(chatId, botConfig.getMessageDownloadError());
-        } finally {
-            if (downloadedTrack != null)
-                downloadedTrack.getFile().delete();
-        }
+        downloadAndSendTrack(trackUrl, chatId);
     }
 
-    private void downloadLink(String link, long chatId) {
+    private void downloadTrackByLink(String link, long chatId) {
         LOG.info("Processing link={}, from chatId={}", link, chatId);
 
+        downloadAndSendTrack(link, chatId);
+    }
+
+    private void downloadAndSendTrack(final String link, final long chatId) {
         Track downloadedTrack = null;
         try {
+            sendChatActionAudioSending(chatId);
             downloadedTrack = trackLoader.download(link);
             sendTrackToChat(chatId, downloadedTrack);
         } catch (IOException e) {
@@ -211,6 +207,14 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
                 .map(track -> String.format(botConfig.getMessageTrack(),
                         trackMenu.getFoundTracks().indexOf(track), track.getPerformer(), track.getTitle()))
                 .collect(Collectors.joining());
+    }
+
+    private void sendChatActionAudioSending(long chatId) {
+        try {
+            send(new SendChatAction(chatId, "upload_audio"));
+        } catch (TelegramApiException e) {
+            LOG.error("Failed send chat action 'upload_audio' to chatId={}", chatId, e);
+        }
     }
 
     private void sendToChat(long chatId, String text) {
@@ -300,7 +304,9 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
     void send(PartialBotApiMethod<? extends Serializable> method) throws TelegramApiException {
         LOG.debug("Redirecting to execute instance of class={}", method.getClass());
 
-        if (method instanceof BotApiMethod)
+        if (method instanceof SendChatAction)
+            execute((SendChatAction) method);
+        else if (method instanceof BotApiMethod)
             execute((BotApiMethod) method);
         else if (method instanceof SendAudio)
             execute((SendAudio) method);

@@ -60,7 +60,7 @@ public class SoundCloudTrackLoaderImpl implements SoundCloudTrackLoader {
 
         LOG.info("Downloading track: {}", trackMetadata);
 
-        Path target = Paths.get(trackMetadata.getPerformer() + " - " + trackMetadata.getTitle() + ".mp3");
+        Path target = Paths.get(System.currentTimeMillis() + ".mp3");
         Files.copy(new URL(String.format(botConfig.getStreamEndpoint(), trackMetadata.getId())).openStream(), target);
         File trackFile = target.toFile();
 
