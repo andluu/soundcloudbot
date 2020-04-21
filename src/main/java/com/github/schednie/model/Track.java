@@ -2,8 +2,9 @@ package com.github.schednie.model;
 
 import lombok.*;
 
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Transient;
 import java.io.File;
 import java.io.Serializable;
 

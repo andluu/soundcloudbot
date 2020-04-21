@@ -54,7 +54,6 @@ public class DataConfig {
     private Properties additionalProperties() {
         Properties properties = new Properties();
         properties.setProperty("hibernate.hbm2ddl.auto", "create-drop");
-//        properties.setProperty("javax.persistence.sql-load-script-source", "load-data.sql");
         return properties;
     }
 

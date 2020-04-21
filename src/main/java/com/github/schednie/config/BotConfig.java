@@ -1,44 +1,49 @@
 package com.github.schednie.config;
 
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.Getter;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+import java.util.regex.Pattern;
 
-public final class BotConfig {
 
-    public static String BOT_TOKEN;
-    public static String BOT_USERNAME;
-    private static Properties STRINGS;
+@Getter
+@Component
+public class BotConfig {
 
-    private static final Logger LOG = LoggerFactory.getLogger(BotConfig.class);
+    @Value("${BOT.TOKEN}")
+    private String botToken;
+    @Value("${BOT.USERNAME}")
+    private String botUsername;
 
-    static {
-        Properties propConfig = new Properties();
-        STRINGS = new Properties();
-        String configProperties = "config.properties";
-        String stringProperties = "strings.properties";
+    // Endpoints
+    @Value("${TRACKS_ENDPOINT}${CLIENT_ID}")
+    private String tracksEndpoint;
+    @Value("${STREAM_ENDPOINT}${CLIENT_ID}")
+    private String streamEndpoint;
+    @Value("${METADATA_ENDPOINT}${CLIENT_ID}")
+    private String metadataEndpoint;
 
-        try (InputStream confIs = BotConfig.class.getClassLoader().getResourceAsStream(configProperties);
-             InputStream stringsIs = BotConfig.class.getClassLoader().getResourceAsStream(stringProperties)) {
+    // Text patterns
+    @Value("${BUTTON_CALLDATA_TMPAGEIDX}")
+    private String buttonCallDataTmpPageIdxText;
+    @Value("${MESSAGE_HELP}")
+    private String messageHelpText;
+    @Value("${MESSAGE_FINDTRACKSNOTHING}")
+    private String messageNoTracksFound;
+    @Value("${MESSAGE_FINDTRACKSERROR}")
+    private String messageFindError;
+    @Value("${MESSAGE_TRACKDOWNLOADERROR}")
+    private String messageDownloadError;
+    @Value("${MESSAGE_TRACKMENUNOTEXIST}")
+    private String messageMenuDoesNotExist;
+    @Value("${MESSAGE_TRACK}")
+    private String messageTrack;
+    @Value("${BUTTON_TEXT_CURRPAGEIDX}")
+    private String buttonTextCurrPageIdx;
 
-            propConfig.load(confIs);
-            BOT_USERNAME = propConfig.getProperty("BOT_USERNAME");
-            BOT_TOKEN = propConfig.getProperty("BOT_TOKEN");
-
-            STRINGS.load(stringsIs);
-        } catch (IOException e) {
-            LOG.error("Failed to load some properties", e);
-        }
-    }
-
-    // use this method to access strings.properties
-    public static String getString(String propertyName) {
-        return STRINGS.getProperty(propertyName, "<error>");
-    }
-
+    private static final String LINK_REGEX = "(https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?";
+    public static final Pattern LINK_PATTERN = Pattern.compile(LINK_REGEX);
 
 }

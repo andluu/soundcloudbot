@@ -1,12 +1,15 @@
 package com.github.schednie.loader;
 
 
+import com.github.schednie.config.BotConfig;
 import com.github.schednie.model.Track;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,32 +25,20 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+@Service
+@RequiredArgsConstructor
 public class SoundCloudTrackLoaderImpl implements SoundCloudTrackLoader {
 
-    private static final String PLAYLIST_REGEX = "^(?:https:\\/\\/|http:\\/\\/|www\\.|)soundcloud\\.com\\/(:.+)\\/sets\\/(:.+)$";
-    private static final String CLIENT_ID_API = "a3e059563d7fd3372b49b37f00a00bcf";
-    /**
-     * format: trackUrl
-     */
-    private static final String METADATA = "https://api.soundcloud.com/resolve.json?url=%s&client_id=" + CLIENT_ID_API;
-    /**
-     * format: trackNumber
-     */
-    private static final String STREAM = "https://api.soundcloud.com/tracks/%s/stream?client_id=" + CLIENT_ID_API;
-
-    /**
-     * format: findQuery, limit
-     */
-    private static final String TRACKS = "http://api.soundcloud.com/tracks?q=%s&limit=%d&client_id=" + CLIENT_ID_API;
-
     private static final Logger LOG = LoggerFactory.getLogger(SoundCloudTrackLoaderImpl.class);
+
+    private final BotConfig botConfig;
 
     @Override
     public List<Track> findTracks(String findQuery, int count) throws URISyntaxException, IOException {
         LOG.info("Searching for {} tracks by query={}", count, findQuery);
 
         JSONArray jsonTracksArray = new JSONArray(IOUtils.toString(
-                new URI(String.format(TRACKS, encodeValue(findQuery), count)), StandardCharsets.UTF_8));
+                new URI(String.format(botConfig.getTracksEndpoint(), encodeValue(findQuery), count)), StandardCharsets.UTF_8));
 
         List<Track> foundTracks = new ArrayList<>(count);
         jsonTracksArray.forEach(o -> {
@@ -70,7 +61,7 @@ public class SoundCloudTrackLoaderImpl implements SoundCloudTrackLoader {
         LOG.info("Downloading track: {}", trackMetadata);
 
         Path target = Paths.get(trackMetadata.getPerformer() + " - " + trackMetadata.getTitle() + ".mp3");
-        Files.copy(new URL(String.format(STREAM, trackMetadata.getId())).openStream(), target);
+        Files.copy(new URL(String.format(botConfig.getStreamEndpoint(), trackMetadata.getId())).openStream(), target);
         File trackFile = target.toFile();
 
         LOG.debug("{}", trackFile);
@@ -80,13 +71,13 @@ public class SoundCloudTrackLoaderImpl implements SoundCloudTrackLoader {
         return trackMetadata;
     }
 
-    private static Track parseTrackMetadata(String trackUrl) throws IOException {
+    private Track parseTrackMetadata(String trackUrl) throws IOException {
         if (!trackUrl.startsWith("https://soundcloud.com")) throw new IllegalArgumentException(trackUrl);
 
         LOG.debug("Parsing track metadata, trackUrl: " + trackUrl);
 
         JSONObject jsonObject = new JSONObject(IOUtils.toString(
-                new URL(String.format(METADATA, trackUrl)), StandardCharsets.UTF_8));
+                new URL(String.format(botConfig.getMetadataEndpoint(), trackUrl)), StandardCharsets.UTF_8));
 
         long id = jsonObject.getLong("id");
         String performer = jsonObject.getJSONObject("user").getString("username");

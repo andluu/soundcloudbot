@@ -1,7 +1,12 @@
 package com.github.schednie.loader;
 
+import com.github.schednie.config.BotConfig;
 import com.github.schednie.model.Track;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -10,9 +15,17 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = {BotConfig.class})
+@TestPropertySource("classpath:config.properties")
 public class SoundCloudTrackLoaderImplTest {
 
-    private SoundCloudTrackLoaderImpl loader = new SoundCloudTrackLoaderImpl();
+    private SoundCloudTrackLoaderImpl loader;
+
+    public SoundCloudTrackLoaderImplTest(final BotConfig botConfig) {
+        this.loader = new SoundCloudTrackLoaderImpl(botConfig);
+    }
+
     private static final int TRACK_COUNT = 50;
 
     @Test

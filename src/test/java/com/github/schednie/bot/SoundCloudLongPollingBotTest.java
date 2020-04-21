@@ -5,16 +5,16 @@ import com.github.schednie.loader.SoundCloudTrackLoaderImpl;
 import com.github.schednie.model.Track;
 import com.github.schednie.model.TrackMenu;
 import com.github.schednie.repositories.TrackMenuRepository;
-import org.apache.commons.io.IOUtils;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
@@ -28,34 +28,41 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
-import static com.github.schednie.bot.SoundCloudLongPollingBot.TRACKMENU_PAGECOUNT;
-import static com.github.schednie.bot.SoundCloudLongPollingBot.TRACKMENU_PAGESIZE;
-import static org.junit.jupiter.api.Assertions.*;
+import static com.github.schednie.bot.SoundCloudLongPollingBot.TRACK_MENU_PAGE_COUNT;
+import static com.github.schednie.bot.SoundCloudLongPollingBot.TRACK_MENU_PAGE_SIZE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
-
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = {BotConfig.class})
+@TestPropertySource("classpath:config.properties")
 public class SoundCloudLongPollingBotTest {
 
     private static final long CHAT_ID = 1337L;
     private static final int MESSAGE_ID = 42;
 
     private static List<Track> someTrackList;
+    private static File testMp3;
     private SoundCloudTrackLoaderImpl loader = mock(SoundCloudTrackLoaderImpl.class);
     private TrackMenuRepository trackMenuRepository = mock(TrackMenuRepository.class);
     private SoundCloudLongPollingBot bot = mock(SoundCloudLongPollingBot.class);
 
     @BeforeAll
-    public static void initTrackList() throws IOException, URISyntaxException {
-        someTrackList = getTrackList();
+    public static void initTrackList() {
+        testMp3 = new File(SoundCloudLongPollingBotTest.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+        someTrackList = IntStream.range(0, 10).boxed().map((i) -> Track.builder()
+                .id(1488)
+                .performer(String.valueOf(i))
+                .title(String.valueOf(i))
+                .url("url" + i)
+                .file(testMp3)
+                .build()).collect(Collectors.toList());
     }
 
     @BeforeEach
@@ -71,7 +78,7 @@ public class SoundCloudLongPollingBotTest {
     public void onUpdateReceived_correctLink_correctSendAudio() throws TelegramApiException, IOException {
         //GIVEN
         Track track = new Track(42, "NoMBe", "California Girls",
-                "https://soundcloud.com/nombe/california-girls", new File("test.mp3"));
+                "https://soundcloud.com/nombe/california-girls", testMp3);
         when(loader.download(track.getUrl())).thenReturn(track);
 
         //WHEN
@@ -92,7 +99,7 @@ public class SoundCloudLongPollingBotTest {
     public void onUpdateReceived_linkWithSomeText_correctSendAudio() throws TelegramApiException, IOException {
         //GIVEN
         Track track = new Track(42, "NoMBe", "California Girls",
-                "https://soundcloud.com/nombe/california-girls", new File("test.mp3"));
+                "https://soundcloud.com/nombe/california-girls", testMp3);
         when(loader.download(track.getUrl())).thenReturn(track);
 
         //WHEN
@@ -114,7 +121,7 @@ public class SoundCloudLongPollingBotTest {
     public void onUpdateReceived_findQuery_correctTrackMenuButtonsMetadata() throws TelegramApiException, IOException, URISyntaxException {
         //GIVEN
         String findQuery = "some query";
-        when(loader.findTracks(findQuery, TRACKMENU_PAGESIZE * TRACKMENU_PAGECOUNT)).thenReturn(someTrackList);
+        when(loader.findTracks(findQuery, TRACK_MENU_PAGE_SIZE * TRACK_MENU_PAGE_COUNT)).thenReturn(someTrackList);
 
         //WHEN
         bot.onUpdateReceived(getUpdateWithMessage(findQuery));
@@ -127,12 +134,12 @@ public class SoundCloudLongPollingBotTest {
         List<List<InlineKeyboardButton>> rows = replyMarkup.getKeyboard();
         List<InlineKeyboardButton> buttons = rows.get(0);
         assertEquals(rows.size(), 1); // rows count
-        assertEquals(buttons.size(), TRACKMENU_PAGECOUNT); // buttons count
-        assertTrue(IntStream.range(0, TRACKMENU_PAGECOUNT)
+        assertEquals(buttons.size(), TRACK_MENU_PAGE_COUNT); // buttons count
+        assertTrue(IntStream.range(0, TRACK_MENU_PAGE_COUNT)
                 .mapToObj(pageIdx -> new InlineKeyboardButton(pageIdx == 0 ?
-                        String.format(BotConfig.getString("BUTTON_TEXT_CURRPAGEIDX"), pageIdx) :
+                        String.format("* %d *", pageIdx) :
                         String.valueOf(pageIdx))
-                        .setCallbackData(String.format(BotConfig.getString("BUTTON_CALLDATA_TMPAGEIDX"), pageIdx)))
+                        .setCallbackData(String.format("TM:%d", pageIdx)))
                 .allMatch(buttons::contains)); // check buttons text and call data
         assertEquals(Long.valueOf(sendMessage.getChatId()).longValue(), CHAT_ID);
     }
@@ -142,7 +149,7 @@ public class SoundCloudLongPollingBotTest {
     public void onUpdateReceived_findQuery_correctTrackMenuText(int pageIdx) throws TelegramApiException, IOException, URISyntaxException {
         //GIVEN
         String findQuery = "some query";
-        when(loader.findTracks(findQuery, TRACKMENU_PAGESIZE * TRACKMENU_PAGECOUNT)).thenReturn(someTrackList);
+        when(loader.findTracks(findQuery, TRACK_MENU_PAGE_SIZE * TRACK_MENU_PAGE_COUNT)).thenReturn(someTrackList);
         when(trackMenuRepository.findById(CHAT_ID)).thenReturn(Optional.of(new TrackMenu(CHAT_ID, someTrackList)));
         when(trackMenuRepository.existsById(CHAT_ID)).thenReturn(true);
 
@@ -155,9 +162,9 @@ public class SoundCloudLongPollingBotTest {
         EditMessageText editMessage = editMessageArgument.getValue();
         String text = editMessage.getText();
         assertEquals(text, someTrackList.stream()
-                .skip(pageIdx * TRACKMENU_PAGESIZE)
-                .limit(TRACKMENU_PAGESIZE)
-                .map(track -> String.format(BotConfig.getString("MESSAGE_TRACK"),
+                .skip(pageIdx * TRACK_MENU_PAGE_SIZE)
+                .limit(TRACK_MENU_PAGE_SIZE)
+                .map(track -> String.format("/%d %s - %s \n",
                         someTrackList.indexOf(track), track.getPerformer(), track.getTitle()))
                 .collect(Collectors.joining())); // Check text
         assertEquals(editMessage.getMessageId().intValue(), MESSAGE_ID); // edit performs on origin message
@@ -169,7 +176,7 @@ public class SoundCloudLongPollingBotTest {
     public void onUpdateReceived_findQuery_correctTrackMenuButtonsHighlighting(int pageIdx) throws TelegramApiException, IOException, URISyntaxException {
         //GIVEN
         String findQuery = "some query";
-        when(loader.findTracks(findQuery, TRACKMENU_PAGESIZE * TRACKMENU_PAGECOUNT)).thenReturn(someTrackList);
+        when(loader.findTracks(findQuery, TRACK_MENU_PAGE_SIZE * TRACK_MENU_PAGE_COUNT)).thenReturn(someTrackList);
         when(trackMenuRepository.findById(CHAT_ID)).thenReturn(Optional.of(new TrackMenu(CHAT_ID, someTrackList)));
         when(trackMenuRepository.existsById(CHAT_ID)).thenReturn(true);
 
@@ -183,7 +190,7 @@ public class SoundCloudLongPollingBotTest {
         List<InlineKeyboardButton> buttons = editMessageArgument.getValue().getReplyMarkup().getKeyboard().get(0);
         InlineKeyboardButton currPageBtn = buttons.get(pageIdx);
         // Check if only the curr page button is highlighted
-        assertEquals(currPageBtn.getText(), String.format(BotConfig.getString("BUTTON_TEXT_CURRPAGEIDX"), pageIdx));
+        assertEquals(currPageBtn.getText(), String.format("* %d *", pageIdx));
         assertTrue(buttons.stream().filter(btn -> btn != currPageBtn).noneMatch(btn -> btn.getText().contains("*")));
         assertEquals(editMessage.getMessageId().intValue(), MESSAGE_ID); // edit performs on origin message
         assertEquals(Long.valueOf(editMessage.getChatId()).longValue(), CHAT_ID);
@@ -196,7 +203,7 @@ public class SoundCloudLongPollingBotTest {
         //GIVEN
         String findQuery = "some query";
         Track correctTrack = someTrackList.get(trackIdx);
-        when(loader.findTracks(findQuery, TRACKMENU_PAGESIZE * TRACKMENU_PAGECOUNT)).thenReturn(someTrackList);
+        when(loader.findTracks(findQuery, TRACK_MENU_PAGE_SIZE * TRACK_MENU_PAGE_COUNT)).thenReturn(someTrackList);
         when(trackMenuRepository.findById(CHAT_ID)).thenReturn(Optional.of(new TrackMenu(CHAT_ID, someTrackList)));
         when(trackMenuRepository.existsById(CHAT_ID)).thenReturn(true);
         when(loader.download(correctTrack.getUrl())).thenReturn(correctTrack);
@@ -215,15 +222,15 @@ public class SoundCloudLongPollingBotTest {
     }
 
     private static IntStream tracksRange() {
-        return IntStream.range(0, TRACKMENU_PAGECOUNT * TRACKMENU_PAGESIZE);
+        return IntStream.range(0, TRACK_MENU_PAGE_COUNT * TRACK_MENU_PAGE_SIZE);
     }
 
     private static IntStream trackMenuPagesRange() {
-        return IntStream.range(0, TRACKMENU_PAGECOUNT);
+        return IntStream.range(0, TRACK_MENU_PAGE_COUNT);
     }
 
     private static String getPageButtonCallbackData(int pageIdx) {
-        return String.format(BotConfig.getString("BUTTON_CALLDATA_TMPAGEIDX"), pageIdx);
+        return String.format("TM:%d", pageIdx);
     }
 
     private static Update getUpdateWithMessage(String msg) {
@@ -257,28 +264,6 @@ public class SoundCloudLongPollingBotTest {
         when(mockedMessage.getChatId()).thenReturn(CHAT_ID);
         when(mockedMessage.getMessageId()).thenReturn(MESSAGE_ID);
         return mockedMessage;
-    }
-
-    private static List<Track> getTrackList() throws IOException, URISyntaxException {
-        JSONObject jsonObject = new JSONObject(IOUtils.toString(
-                new URL("https://api.soundcloud.com/resolve.json?" +
-                        "client_id=a3e059563d7fd3372b49b37f00a00bcf" +
-                        "&url=https://soundcloud.com/lovely-1986/sets/acid-jazz-funky-mix"),
-                Charset.forName("UTF-8")));
-        JSONArray tracks = jsonObject.getJSONArray("tracks");
-        List<Track> trackList = new ArrayList<>();
-        for (int i = 0; i < TRACKMENU_PAGECOUNT * TRACKMENU_PAGESIZE; i++) {
-            String url = tracks.getJSONObject(i).getString("permalink_url");
-
-            trackList.add(Track.builder()
-                    .id(1488)
-                    .performer(String.valueOf(i))
-                    .title(String.valueOf(i))
-                    .url(url)
-                    .file(new File(SoundCloudLongPollingBotTest.class.getClassLoader().getResource("test.mp3").toURI()))
-                    .build());
-        }
-        return trackList;
     }
 
 }

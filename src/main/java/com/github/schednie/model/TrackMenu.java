@@ -2,7 +2,6 @@ package com.github.schednie.model;
 
 
 import lombok.*;
-import org.hibernate.annotations.Fetch;
 
 import javax.persistence.*;
 import java.io.Serializable;

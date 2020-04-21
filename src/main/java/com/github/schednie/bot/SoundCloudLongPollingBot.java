@@ -5,9 +5,12 @@ import com.github.schednie.loader.SoundCloudTrackLoader;
 import com.github.schednie.model.Track;
 import com.github.schednie.model.TrackMenu;
 import com.github.schednie.repositories.TrackMenuRepository;
+import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.PartialBotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
@@ -19,7 +22,10 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
@@ -27,34 +33,32 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+@Service
+@AllArgsConstructor
 public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
 
-    private final String botToken;
-    private final String botUsername;
+    private static final Logger LOG = LoggerFactory.getLogger(SoundCloudLongPollingBot.class);
+    /**
+     * Count of pages in TrackMenu
+     */
+    static final int TRACK_MENU_PAGE_COUNT = 5;
+    /**
+     * Count of tracks by each page in TrackMenu
+     */
+    static final int TRACK_MENU_PAGE_SIZE = 10;
 
     private SoundCloudTrackLoader trackLoader;
     private TrackMenuRepository trackMenuRepository;
+    private final BotConfig botConfig;
 
-    private static final String LINK_REGEX = "(https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?";
-    private static final Pattern LINK_PATTERN = Pattern.compile(LINK_REGEX);
-    // Count of pages in TrackMenu
-    static final int TRACKMENU_PAGECOUNT = 5;
-    // Count of tracks by each page in TrackMenu
-    static final int TRACKMENU_PAGESIZE = 10;
-
-    private static final Logger LOG = LoggerFactory.getLogger(SoundCloudLongPollingBot.class);
-
-    public SoundCloudLongPollingBot(SoundCloudTrackLoader trackLoader, TrackMenuRepository trackMenuRepository, String botToken, String botUsername) {
-        super();
+    @PostConstruct
+    public void init() throws TelegramApiRequestException {
         LOG.debug("Creating new SoundCloudLongPollingBot");
-        this.trackLoader = trackLoader;
-        this.botToken = botToken;
-        this.botUsername = botUsername;
-        this.trackMenuRepository = trackMenuRepository;
+        TelegramBotsApi api = new TelegramBotsApi();
+        api.registerBot(this);
     }
 
     @Override
@@ -79,9 +83,14 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
 
         LOG.debug("Received callback query data='{}', messageId={}, chatId={}", cqData, messageId, chatId);
 
-        if (cqData.split(":")[0].equals(BotConfig.getString("BUTTON_CALLDATA_TMPAGEIDX").split(":")[0])) {
-            buttonTrackMenuPage(Integer.parseInt(cqData.split(":")[1]), chatId, messageId);
+        if (isCallbackFromTrackMenu(cqData)) {
+            int selectedPageIdx = Integer.parseInt(cqData.split(":")[1]);
+            processButtonTrackMenuPage(selectedPageIdx, chatId, messageId);
         }
+    }
+
+    private boolean isCallbackFromTrackMenu(final String cqData) {
+        return cqData.split(":")[0].equals(botConfig.getButtonCallDataTmpPageIdxText().split(":")[0]);
     }
 
     private void handleIncomingMessage(Message msg) {
@@ -109,7 +118,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
     private void helpCommand(long chatId) {
         LOG.info("Processing start/help command from chatId={}", chatId);
 
-        sendToChat(chatId, BotConfig.getString("MESSAGE_HELP"));
+        sendToChat(chatId, botConfig.getMessageHelpText());
     }
 
     private void trackIdxCommand(int trackIdx, long chatId) {
@@ -117,7 +126,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
 
         Optional<TrackMenu> trackMenuOptional = trackMenuRepository.findById(chatId);
         if (!trackMenuOptional.isPresent()) {
-            sendToChat(chatId, BotConfig.getString("MESSAGE_TRACKMENUNOTEXIST"));
+            sendToChat(chatId, botConfig.getMessageMenuDoesNotExist());
             return;
         }
 
@@ -128,7 +137,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
             sendTrackToChat(chatId, downloadedTrack);
         } catch (IOException e) {
             LOG.error("Failed to download from link={}", trackUrl, e);
-            sendToChat(chatId, BotConfig.getString("MESSAGE_TRACKDOWNLOADERROR"));
+            sendToChat(chatId, botConfig.getMessageDownloadError());
         } finally {
             if (downloadedTrack != null)
                 downloadedTrack.getFile().delete();
@@ -144,7 +153,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
             sendTrackToChat(chatId, downloadedTrack);
         } catch (IOException e) {
             LOG.error("Failed to download from link={}", link, e);
-            sendToChat(chatId, BotConfig.getString("MESSAGE_TRACKDOWNLOADERROR"));
+            sendToChat(chatId, botConfig.getMessageDownloadError());
         } finally {
             if (downloadedTrack != null)
                 downloadedTrack.getFile().delete();
@@ -155,11 +164,11 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
         LOG.info("Processing findQuery='{}', from chatId={}", findQuery.replaceAll("\n", " "), chatId);
 
         try {
-            List<Track> foundTracks = trackLoader.findTracks(findQuery, TRACKMENU_PAGESIZE * TRACKMENU_PAGECOUNT);
+            List<Track> foundTracks = trackLoader.findTracks(findQuery, TRACK_MENU_PAGE_SIZE * TRACK_MENU_PAGE_COUNT);
 
             if (foundTracks.isEmpty()) {
                 LOG.info("Nothing found");
-                sendToChat(chatId, String.format(BotConfig.getString("MESSAGE_FINDTRACKSNOTHING"), findQuery));
+                sendToChat(chatId, String.format(botConfig.getMessageNoTracksFound(), findQuery));
                 return;
             }
 
@@ -173,16 +182,16 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
                     createTrackMenuPagesMarkup(0, trackMenu.getFoundTracks().size()));
         } catch (IOException | URISyntaxException e) {
             LOG.error("Failed to find tracks by findQuery='{}', for chatId={}", findQuery.replaceAll("\n", " "), chatId, e);
-            sendToChat(chatId, String.format(BotConfig.getString("MESSAGE_FINDTRACKSERROR"), findQuery));
+            sendToChat(chatId, String.format(botConfig.getMessageFindError(), findQuery));
         }
     }
 
-    private void buttonTrackMenuPage(int pageIdx, long chatId, int messageId) {
+    private void processButtonTrackMenuPage(int pageIdx, long chatId, int messageId) {
         LOG.info("Processing TM page button idx={}, from chatId={}, from messageId={}", pageIdx, chatId, messageId);
 
         Optional<TrackMenu> trackMenuOptional = trackMenuRepository.findById(chatId);
         if (!trackMenuOptional.isPresent()) {
-            sendEditedToChat(chatId, messageId, BotConfig.getString("MESSAGE_TRACKMENUNOTEXIST"));
+            sendEditedToChat(chatId, messageId, botConfig.getMessageMenuDoesNotExist());
             return;
         }
 
@@ -197,9 +206,9 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
 
     private String getTrackListString(int pageIdx, TrackMenu trackMenu) {
         return trackMenu.getFoundTracks().stream()
-                .skip(pageIdx * TRACKMENU_PAGESIZE)
-                .limit(TRACKMENU_PAGESIZE)
-                .map(track -> String.format(BotConfig.getString("MESSAGE_TRACK"),
+                .skip(pageIdx * TRACK_MENU_PAGE_SIZE)
+                .limit(TRACK_MENU_PAGE_SIZE)
+                .map(track -> String.format(botConfig.getMessageTrack(),
                         trackMenu.getFoundTracks().indexOf(track), track.getPerformer(), track.getTitle()))
                 .collect(Collectors.joining());
     }
@@ -264,12 +273,12 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
-        List<InlineKeyboardButton> buttons = IntStream.range(0, (int) Math.ceil((double) tracksCount / TRACKMENU_PAGESIZE))
+        int pagesCount = (int) Math.ceil((double) tracksCount / TRACK_MENU_PAGE_SIZE);
+        List<InlineKeyboardButton> buttons = IntStream.range(0, pagesCount)
                 .mapToObj(pageIdx -> new InlineKeyboardButton(pageIdx == currPageIdx ?
-                        String.format(BotConfig.getString("BUTTON_TEXT_CURRPAGEIDX"), pageIdx) :
+                        String.format(botConfig.getButtonTextCurrPageIdx(), pageIdx) :
                         String.valueOf(pageIdx))
-                        .setCallbackData(String.format(
-                                BotConfig.getString("BUTTON_CALLDATA_TMPAGEIDX"), pageIdx)))
+                        .setCallbackData(String.format(botConfig.getButtonCallDataTmpPageIdxText(), pageIdx)))
                 .collect(Collectors.toList());
 
         keyboard.add(buttons);
@@ -311,7 +320,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
 
     private static boolean containsLink(String text) {
         LOG.trace("Checking whether text contains a link '{}'", text.replaceAll("\n", " "));
-        return LINK_PATTERN.matcher(text).find();
+        return BotConfig.LINK_PATTERN.matcher(text).find();
     }
 
     private static boolean isNumber(String command) {
@@ -322,7 +331,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
     private static String parseLink(String text) {
         LOG.trace("Finding url in a text={}", text.replaceAll("\n", " "));
 
-        Matcher m = LINK_PATTERN.matcher(text);
+        Matcher m = BotConfig.LINK_PATTERN.matcher(text);
         if (m.find()) {
             return text.substring(m.start(), m.end());
         } else {
@@ -332,12 +341,17 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return botUsername;
+        return botConfig.getBotUsername();
     }
 
     @Override
     public String getBotToken() {
-        return botToken;
+        return botConfig.getBotToken();
     }
 
+    @Override
+    @PreDestroy
+    public void onClosing() {
+        super.onClosing();
+    }
 }
