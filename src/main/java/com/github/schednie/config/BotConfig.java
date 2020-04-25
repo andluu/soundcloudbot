@@ -12,9 +12,9 @@ import java.util.regex.Pattern;
 @Component
 public class BotConfig {
 
-    @Value("${BOT.TOKEN}")
+    @Value("${BOT_TOKEN}")
     private String botToken;
-    @Value("${BOT.USERNAME}")
+    @Value("${BOT_USERNAME}")
     private String botUsername;
 
     // Endpoints
