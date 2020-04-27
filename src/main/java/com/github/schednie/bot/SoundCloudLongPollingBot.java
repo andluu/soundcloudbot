@@ -270,6 +270,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
                     .setChatId(chatId));
         } catch (TelegramApiException e) {
             LOG.error("Failed to send track={}, to chatId={}", downloadedTrack, chatId, e);
+            sendToChat(chatId, botConfig.getMessageFailedDueAudioSize());
         }
     }
 

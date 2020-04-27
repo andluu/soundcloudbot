@@ -42,6 +42,8 @@ public class BotConfig {
     private String messageTrack;
     @Value("${BUTTON_TEXT_CURRPAGEIDX}")
     private String buttonTextCurrPageIdx;
+    @Value("${MESSAGE_FAILED_DUE_AUDIO_SIZE}")
+    private String messageFailedDueAudioSize;
 
     private static final String LINK_REGEX = "(https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?";
     public static final Pattern LINK_PATTERN = Pattern.compile(LINK_REGEX);
