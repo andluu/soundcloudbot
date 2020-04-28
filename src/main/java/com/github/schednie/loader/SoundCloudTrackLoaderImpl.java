@@ -14,8 +14,6 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -34,11 +32,13 @@ public class SoundCloudTrackLoaderImpl implements SoundCloudTrackLoader {
     private final BotConfig botConfig;
 
     @Override
-    public List<Track> findTracks(String findQuery, int count) throws URISyntaxException, IOException {
+    public List<Track> findTracks(String findQuery, int count) throws IOException {
         LOG.info("Searching for {} tracks by query={}", count, findQuery);
 
-        JSONArray jsonTracksArray = new JSONArray(IOUtils.toString(
-                new URI(String.format(botConfig.getTracksEndpoint(), encodeValue(findQuery), count)), StandardCharsets.UTF_8));
+        String tracksByQueryJsonResponse = IOUtils.toString(
+                new URL(String.format(botConfig.getTracksEndpoint(), encodeValue(findQuery), count)),
+                StandardCharsets.UTF_8);
+        JSONArray jsonTracksArray = new JSONArray(tracksByQueryJsonResponse);
 
         List<Track> foundTracks = new ArrayList<>(count);
         jsonTracksArray.forEach(o -> {
@@ -76,8 +76,10 @@ public class SoundCloudTrackLoaderImpl implements SoundCloudTrackLoader {
 
         LOG.debug("Parsing track metadata, trackUrl: " + trackUrl);
 
-        JSONObject jsonObject = new JSONObject(IOUtils.toString(
-                new URL(String.format(botConfig.getMetadataEndpoint(), trackUrl)), StandardCharsets.UTF_8));
+        String trackMetadataJsonResponse = IOUtils.toString(
+                new URL(String.format(botConfig.getMetadataEndpoint(), trackUrl)),
+                StandardCharsets.UTF_8);
+        JSONObject jsonObject = new JSONObject(trackMetadataJsonResponse);
 
         long id = jsonObject.getLong("id");
         String performer = jsonObject.getJSONObject("user").getString("username");
