@@ -1,6 +1,6 @@
-package com.github.schednie.repositories;
+package com.github.andluu.repositories;
 
-import com.github.schednie.model.TrackMenu;
+import com.github.andluu.model.TrackMenu;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

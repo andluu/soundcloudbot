@@ -1,8 +1,8 @@
-package com.github.schednie.loader;
+package com.github.andluu.loader;
 
 
-import com.github.schednie.config.BotConfig;
-import com.github.schednie.model.Track;
+import com.github.andluu.config.BotConfig;
+import com.github.andluu.model.Track;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;

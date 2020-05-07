@@ -71,7 +71,7 @@
                                 <!-- add Main-Class to manifest file -->
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.github.schednie.Application</mainClass>
+                                    <mainClass>com.github.andluu.Application</mainClass>
                                 </transformer>
                             </transformers>
                             <filters>

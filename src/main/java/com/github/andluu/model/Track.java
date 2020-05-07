@@ -1,4 +1,4 @@
-package com.github.schednie.model;
+package com.github.andluu.model;
 
 import lombok.*;
 

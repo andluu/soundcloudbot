@@ -1,4 +1,4 @@
-package com.github.schednie;
+package com.github.andluu;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +10,7 @@ import org.telegram.telegrambots.ApiContextInitializer;
         @PropertySource("classpath:config.properties"),
         @PropertySource("classpath:strings.properties")
 })
-@ComponentScan(basePackages = "com.github.schednie")
+@ComponentScan(basePackages = "com.github.andluu")
 public class Application {
 
     private static final Logger LOG = LoggerFactory.getLogger(Application.class);

@@ -1,10 +1,10 @@
-package com.github.schednie.bot;
+package com.github.andluu.bot;
 
-import com.github.schednie.config.BotConfig;
-import com.github.schednie.loader.SoundCloudTrackLoader;
-import com.github.schednie.model.Track;
-import com.github.schednie.model.TrackMenu;
-import com.github.schednie.repositories.TrackMenuRepository;
+import com.github.andluu.config.BotConfig;
+import com.github.andluu.loader.SoundCloudTrackLoader;
+import com.github.andluu.model.Track;
+import com.github.andluu.model.TrackMenu;
+import com.github.andluu.repositories.TrackMenuRepository;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

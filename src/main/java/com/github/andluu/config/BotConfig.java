@@ -1,4 +1,4 @@
-package com.github.schednie.config;
+package com.github.andluu.config;
 
 
 import lombok.Getter;

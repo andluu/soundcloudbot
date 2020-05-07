@@ -1,4 +1,4 @@
-package com.github.schednie.config;
+package com.github.andluu.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +15,7 @@ import javax.sql.DataSource;
 import java.util.Properties;
 
 @Configuration
-@EnableJpaRepositories(basePackages = "com.github.schednie.repositories")
+@EnableJpaRepositories(basePackages = "com.github.andluu.repositories")
 @EnableTransactionManagement
 public class DataConfig {
 

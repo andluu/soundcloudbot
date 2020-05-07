@@ -1,6 +1,6 @@
-package com.github.schednie.loader;
+package com.github.andluu.loader;
 
-import com.github.schednie.model.Track;
+import com.github.andluu.model.Track;
 
 import java.io.IOException;
 import java.net.URISyntaxException;

@@ -1,10 +1,10 @@
-package com.github.schednie.bot;
+package com.github.andluu.bot;
 
-import com.github.schednie.config.BotConfig;
-import com.github.schednie.loader.SoundCloudTrackLoaderImpl;
-import com.github.schednie.model.Track;
-import com.github.schednie.model.TrackMenu;
-import com.github.schednie.repositories.TrackMenuRepository;
+import com.github.andluu.config.BotConfig;
+import com.github.andluu.loader.SoundCloudTrackLoaderImpl;
+import com.github.andluu.model.Track;
+import com.github.andluu.model.TrackMenu;
+import com.github.andluu.repositories.TrackMenuRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,8 +33,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.github.schednie.bot.SoundCloudLongPollingBot.TRACK_MENU_PAGE_COUNT;
-import static com.github.schednie.bot.SoundCloudLongPollingBot.TRACK_MENU_PAGE_SIZE;
+import static com.github.andluu.bot.SoundCloudLongPollingBot.TRACK_MENU_PAGE_COUNT;
+import static com.github.andluu.bot.SoundCloudLongPollingBot.TRACK_MENU_PAGE_SIZE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
