@@ -39,7 +39,7 @@ public class DataConfig {
 
         LocalContainerEntityManagerFactoryBean factory = new LocalContainerEntityManagerFactoryBean();
         factory.setJpaVendorAdapter(vendorAdapter);
-        factory.setPackagesToScan("com.github.schednie.model");
+        factory.setPackagesToScan("com.github.andluu.model");
         factory.setDataSource(dataSource());
         factory.setJpaProperties(additionalProperties());
         return factory;

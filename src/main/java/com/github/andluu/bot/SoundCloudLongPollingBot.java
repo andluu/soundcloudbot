@@ -105,7 +105,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
             if (isNumber(cmd)) {
                 trackIdxCommand(Integer.parseInt(cmd), chatId);
             } else if (cmd.equals("start")) {
-                helpCommand(chatId);
+                startCommand(chatId);
             } else if (cmd.equals("help")) {
                 helpCommand(chatId);
             }
@@ -116,8 +116,14 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
         }
     }
 
+    private void startCommand(final long chatId) {
+        LOG.info("Processing start command from chatId={}", chatId);
+
+        sendToChat(chatId, botConfig.getMessageStart());
+    }
+
     private void helpCommand(long chatId) {
-        LOG.info("Processing start/help command from chatId={}", chatId);
+        LOG.info("Processing help command from chatId={}", chatId);
 
         sendToChat(chatId, botConfig.getMessageHelpText());
     }

@@ -30,6 +30,8 @@ public class BotConfig {
     private String buttonCallDataTmpPageIdxText;
     @Value("${MESSAGE_HELP}")
     private String messageHelpText;
+    @Value("${MESSAGE_START}")
+    private String messageStart;
     @Value("${MESSAGE_FINDTRACKSNOTHING}")
     private String messageNoTracksFound;
     @Value("${MESSAGE_FINDTRACKSERROR}")
