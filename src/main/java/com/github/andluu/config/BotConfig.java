@@ -16,6 +16,8 @@ public class BotConfig {
     private String botToken;
     @Value("${BOT_USERNAME}")
     private String botUsername;
+    @Value("${DDL}")
+    private String ddl;
 
     // Endpoints
     @Value("${TRACKS_ENDPOINT}${CLIENT_ID}")

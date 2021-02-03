@@ -2,8 +2,10 @@ package com.github.andluu.bot;
 
 import com.github.andluu.config.BotConfig;
 import com.github.andluu.loader.SoundCloudTrackLoader;
+import com.github.andluu.model.Request;
 import com.github.andluu.model.Track;
 import com.github.andluu.model.TrackMenu;
+import com.github.andluu.repositories.RequestRepository;
 import com.github.andluu.repositories.TrackMenuRepository;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
@@ -27,10 +29,10 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import java.io.IOException;
 import java.io.Serializable;
-import java.net.URISyntaxException;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -54,6 +56,7 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
     private SoundCloudTrackLoader trackLoader;
     private TrackMenuRepository trackMenuRepository;
     private final BotConfig botConfig;
+    private RequestRepository requestRepository;
 
     @PostConstruct
     public void init() throws TelegramApiRequestException {
@@ -105,27 +108,33 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
             if (isNumber(cmd)) {
                 trackIdxCommand(Integer.parseInt(cmd), chatId);
             } else if (cmd.equals("start")) {
-                startCommand(chatId);
+                Request req = startCommand(chatId);
+                requestRepository.save(req);
             } else if (cmd.equals("help")) {
-                helpCommand(chatId);
+                Request req = helpCommand(chatId);
+                requestRepository.save(req);
             }
         } else if (containsLink(text)) {
-            downloadTrackByLink(parseLink(text), chatId);
+            Request req = downloadTrackByLink(parseLink(text), chatId);
+            requestRepository.save(req);
         } else {
-            findQuery(text, chatId);
+            Request req = findQuery(text, chatId);
+            requestRepository.save(req);
         }
     }
 
-    private void startCommand(final long chatId) {
+    private Request startCommand(final long chatId) {
         LOG.info("Processing start command from chatId={}", chatId);
 
         sendToChat(chatId, botConfig.getMessageStart());
+        return new Request(0, chatId, "/start", null, LocalDate.now());
     }
 
-    private void helpCommand(long chatId) {
+    private Request helpCommand(long chatId) {
         LOG.info("Processing help command from chatId={}", chatId);
 
         sendToChat(chatId, botConfig.getMessageHelpText());
+        return new Request(0, chatId, "/help", null, LocalDate.now());
     }
 
     private void trackIdxCommand(int trackIdx, long chatId) {
@@ -141,37 +150,42 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
         downloadAndSendTrack(trackUrl, chatId);
     }
 
-    private void downloadTrackByLink(String link, long chatId) {
+    private Request downloadTrackByLink(String link, long chatId) {
         LOG.info("Processing link={}, from chatId={}", link, chatId);
 
-        downloadAndSendTrack(link, chatId);
+        return downloadAndSendTrack(link, chatId);
     }
 
-    private void downloadAndSendTrack(final String link, final long chatId) {
+    private Request downloadAndSendTrack(final String link, final long chatId) {
         Track downloadedTrack = null;
         try {
             sendChatActionAudioSending(chatId);
             downloadedTrack = trackLoader.download(link);
             sendTrackToChat(chatId, downloadedTrack);
-        } catch (IOException e) {
+            return new Request(0, chatId, link, null, LocalDate.now());
+        } catch (Exception e) {
             LOG.error("Failed to download from link={}", link, e);
             sendToChat(chatId, botConfig.getMessageDownloadError());
+            return new Request(0, chatId, link, errToString(e), LocalDate.now());
         } finally {
             if (downloadedTrack != null)
                 downloadedTrack.getFile().delete();
         }
     }
 
-    private void findQuery(String findQuery, long chatId) {
+    private Request findQuery(String findQuery, long chatId) {
         LOG.info("Processing findQuery='{}', from chatId={}", findQuery.replaceAll("\n", " "), chatId);
 
         try {
+            if (trackMenuRepository.existsById(chatId))
+                trackMenuRepository.deleteById(chatId);
+
             List<Track> foundTracks = trackLoader.findTracks(findQuery, TRACK_MENU_PAGE_SIZE * TRACK_MENU_PAGE_COUNT);
 
             if (foundTracks.isEmpty()) {
                 LOG.info("Nothing found");
                 sendToChat(chatId, String.format(botConfig.getMessageNoTracksFound(), findQuery));
-                return;
+                return new Request(0, chatId, findQuery, "Nothing found", LocalDate.now());
             }
 
             LOG.info("Found {} tracks", foundTracks.size());
@@ -182,9 +196,11 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
             sendToChat(chatId,
                     getTrackListString(0, trackMenu),
                     createTrackMenuPagesMarkup(0, trackMenu.getFoundTracks().size()));
-        } catch (IOException | URISyntaxException e) {
+            return new Request(0, chatId, findQuery, null, LocalDate.now());
+        } catch (Exception e) {
             LOG.error("Failed to find tracks by findQuery='{}', for chatId={}", findQuery.replaceAll("\n", " "), chatId, e);
             sendToChat(chatId, String.format(botConfig.getMessageFindError(), findQuery));
+            return new Request(0, chatId, findQuery, errToString(e), LocalDate.now());
         }
     }
 
@@ -230,6 +246,10 @@ public class SoundCloudLongPollingBot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             LOG.error("Failed send message text='{}'; to chatId={}", text.replaceAll("\n", " "), chatId, e);
         }
+    }
+
+    private String errToString(final Exception e) {
+        return e.getMessage() + Arrays.toString(e.getStackTrace());
     }
 
     private void sendToChat(long chatId, String text, InlineKeyboardMarkup markup) {
