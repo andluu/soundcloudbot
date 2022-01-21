@@ -24,7 +24,7 @@
         <spring-context.version>5.2.6.RELEASE</spring-context.version>
         <telegrambots.version>4.3.1</telegrambots.version>
         <json.version>20180813</json.version>
-        <h2.version>1.4.199</h2.version>
+        <h2.version>2.1.210</h2.version>
         <hibernate.version>5.4.3.Final</hibernate.version>
         <mockito.version>2.28.2</mockito.version>
         <jupiter.version>5.5.0</jupiter.version>
